@@ -1,0 +1,46 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+
+#define SHM_SIZE 1024
+#define KEY 1234
+
+void error(const char *msg) {
+    perror(msg);
+    exit(1);
+}
+
+int main() {
+    int shmid, semid;
+    char *shmaddr;
+    struct sembuf sem_op;
+
+    if ((shmid = shmget(KEY, SHM_SIZE, IPC_CREAT | 0666)) < 0)
+        error("shmget");
+
+    if ((shmaddr = shmat(shmid, NULL, 0)) == (char *) -1)
+        error("shmat");
+
+    if ((semid = semget(KEY, 1, IPC_CREAT | 0666)) < 0)
+        error("semget");
+
+    while (1) {
+        sem_op.sem_num = 0;
+        sem_op.sem_op = -1;
+        sem_op.sem_flg = 0;
+        if (semop(semid, &sem_op, 1) == -1)
+            error("semop");
+
+        printf("Odebrany tekst: %s", shmaddr);
+    }
+
+    if (shmdt(shmaddr) == -1)
+        error("shmdt");
+
+    return 0;
+}
